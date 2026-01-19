@@ -1,8 +1,8 @@
 [project]
 authors = [{name = "François Steinmetz", email = "fs@hygeos.com"}]
 name = "polymer"
-requires-python = "<= 3.13"
-version = "v4.17-beta2-dev"
+requires-python = ">= 3.11"
+version = "v4.17.3"
 description = "Polymer atmospheric correction algorithm (http://dx.doi.org/91364/OE.19.009783)"
 dependencies = [
     "numpy",
@@ -13,6 +13,7 @@ dependencies = [
     "scipy",
     "netcdf4",
     "xarray",
+    "cfgrib",
 ]
 
 [project.optional-dependencies]
@@ -86,3 +87,4 @@ pint-xarray = "*"
 cf-xarray = "*"
 dask = "*"
 meson = "*"
+xlrd = "<2"
