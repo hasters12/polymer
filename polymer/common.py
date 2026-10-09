@@ -16,6 +16,7 @@ L2FLAGS_POLYMER = {
         'EXCEPTION'     : 32,
         'THICK_AEROSOL' : 64,
         'HIGH_AIR_MASS' : 128,
+        'POSTFILTER'    : 256,   # MODIS-specific: bad pixels at cloud edges (postprocess_modis)
         'EXTERNAL_MASK' : 512,
         'CASE2'         : 1024,
         'INCONSISTENCY' : 2048,
