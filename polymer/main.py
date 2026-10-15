@@ -13,7 +13,7 @@ from multiprocessing import Pool
 from datetime import datetime
 from polymer.params import Params
 from polymer.bodhaine import rod
-from polymer.polymer_main import PolymerSolver
+from polymer.polymer_main import PolymerSolverCy
 from polymer.water import ParkRuddick, MorelMaritorena
 from warnings import warn
 from polymer.uncertainties import toa_uncertainties
@@ -59,7 +59,7 @@ class InitCorr(object):
         else:
             raise Exception('Invalid water model "{}"'.format(self.params.water_model))
 
-        return PolymerSolver(watermodel, self.params)
+        return PolymerSolverCy(watermodel, self.params)
 
 
     def preprocessing(self, block):
@@ -278,7 +278,8 @@ class InitCorr(object):
             # default: calculate Rayleigh optical thickness on the fly
             tau_ray = rod(wav/1000., 400., 45.,
                           block.altitude[ok],
-                          block.surf_press[ok])
+                          block.surf_press[ok],
+                          rod_version=params.asdict().get('rod_version', 4))
         else:
             # if level1 provides its Rayleigh optical thickness, use it
             tau_ray = block.tau_ray[ok, inir_read]
@@ -335,7 +336,8 @@ class InitCorr(object):
                 # default: calculate Rayleigh optical thickness on the fly
                 tau_ray = rod(wav/1000., 400., 45.,
                               block.altitude[ok],
-                              block.surf_press[ok])
+                              block.surf_press[ok],
+                              rod_version=params.asdict().get('rod_version', 4))
             else:
                 # if level1 provides its Rayleigh optical thickness, use it
                 tau_ray = block.tau_ray[ok,i]
@@ -500,7 +502,8 @@ def run_atm_corr(level1, level2, **kwargs):
     # initialize level1 and level2 instances
     with level2 as l2, level1 as l1:
 
-        params = Params(l1.sensor, **kwargs)
+        platform = getattr(l1, 'platform', None)
+        params = Params(sensor=l1.sensor, platform=platform, **kwargs)
         params.preprocess(l1)
 
         l2.init(l1)

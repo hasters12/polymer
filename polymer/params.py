@@ -104,7 +104,7 @@ class Params(object):
     '''
     A class to store the processing parameters
     '''
-    def __init__(self, sensor=None, **kwargs):
+    def __init__(self, sensor=None, platform=None, **kwargs):
 
         # store attributes in an OrderedDict
         self.__dict__['_odict'] = OrderedDict()
@@ -113,6 +113,7 @@ class Params(object):
             warnings.warn("The 'dir_base' argument is deprecated, please locate it with the DIR_POLYMER_AUXDATA", DeprecationWarning)
 
         self.sensor = sensor
+        self.platform = platform
 
         self.dir_static = dir_static
         self.dir_common = dir_static/'common'
@@ -121,7 +122,7 @@ class Params(object):
         self.common(**kwargs)
 
         # define sensor-specific parameters
-        self.sensor_specific(sensor)
+        self.sensor_specific(sensor, platform)
 
         # setup custom parameters
         self.update(**kwargs)
@@ -178,6 +179,11 @@ class Params(object):
         #   * apply wavelength normalization for MERIS and OLCI (2)
         #   * apply both (3)
         self.normalize = 3
+
+        # geometry normalization angles (used when normalize & 1)
+        self.sza0 = 0.0    # solar zenith angle for normalization
+        self.vza0 = 0.0    # viewer zenith angle for normalization
+        self.raa0 = 0.0    # relative azimuth angle for normalization
 
         self.Rprime_consistency = True
 
@@ -237,6 +243,10 @@ class Params(object):
         #     * a DEM_SRTM object
         self.altitude = 0
 
+        # DEM source for v5 processing
+        # can be: "zero", "gtopo30", "copernicus", or None (expect altitude in ds)
+        self.dem = None
+
         # BITMASK
         # (see common.py for bitmask definition)
         # no product (NaN) in case of...
@@ -252,7 +262,7 @@ class Params(object):
         # uncertainties
         self.uncertainties = 0
 
-    def sensor_specific(self, sensor):
+    def sensor_specific(self, sensor, platform):
         '''
         define sensor-specific default parameters
         '''
@@ -260,6 +270,12 @@ class Params(object):
             self.defaults_meris()
         elif sensor == 'MSI':
             self.defaults_msi()
+            if platform == 'Sentinel-2A':
+                self.defaults_msiA()
+            if platform == 'Sentinel-2B':
+                self.defaults_msiB()
+            if platform == 'Sentinel-2C':
+                self.defaults_msiC()
         elif sensor == 'OLCI':
             self.defaults_olci()
         elif sensor in ['VIIRS', 'VIIRSN']:
@@ -278,6 +294,8 @@ class Params(object):
             self.defaults_prisma()
         elif sensor == 'OCI':
             self.defaults_pace_oci()
+        elif sensor == 'HAWKEYE':
+            self.defaults_hawkeye()
         elif sensor.startswith('HYPSO'):
             self.defaults_hypso()
 
@@ -345,9 +363,36 @@ class Params(object):
         define default parameters for Sentinel-3/OLCI
         '''
 
+        self.bands_l1   = [400,412,443,490,510,560,620,665,674,681,709,754,760,764,767,779,865,885,900,940,1020]
         self.bands_corr = [        443,490,510,560,620,665,            754,779,865]
         self.bands_oc   = [        443,490,510,560,620,665,            754,779,865]
         self.bands_rw   = [400,412,443,490,510,560,620,665,674,681,709,754,779,865,885,1020]
+        self.wav_norm = {
+            400: 400.664,
+            412: 412.076,
+            443: 443.183,
+            490: 490.713,
+            510: 510.639,
+            560: 560.579,
+            620: 620.632,
+            665: 665.3719,
+            674: 674.105,
+            681: 681.66,
+            709: 709.1799,
+            754: 754.2236,
+            760: 761.8164,
+            764: 764.9075,
+            767: 767.9734,
+            779: 779.2685,
+            865: 865.4625,
+            885: 884.3256,
+            900: 899.3162,
+            940: 939.02,
+            1020: 1015.9766,
+            1375: 1375.0,
+            1610: 1610.0,
+            2250: 2250.0,
+        }
 
         self.band_cloudmask = 865
 
@@ -431,6 +476,8 @@ class Params(object):
 
     def defaults_msi(self):
 
+        self.bands_l1 =   [443, 490, 560, 665, 705, 740, 783, 842, 865, 945, 1375, 1610, 2190]
+
         self.bands_corr = [443,490,560,665,705,740,783,    865,                  ]
         self.bands_oc   = [443,490,560,665,705,740,783,    865,                  ]
         self.bands_rw   = [443,490,560,665,705,740,783,842,865,         1610,    ]
@@ -507,6 +554,25 @@ class Params(object):
         }
         self.sigma_typ = {k: self.Ltyp[k]/self.snr[k]
                           for k in self.snr}
+
+        # DEM source
+        self.dem = "copernicus"
+
+        from eoread.ancillary_nasa import Ancillary_NASA
+
+        self.ancillary = Ancillary_NASA()
+
+    def defaults_msiA(self):
+        self.srf_getter = 'eotools.srf.get_SRF_eumetsat'
+        self.srf_getter_arg = 'sentinel2_1_msi'
+
+    def defaults_msiB(self):
+        self.srf_getter = 'eotools.srf.get_SRF_eumetsat'
+        self.srf_getter_arg = 'sentinel2_2_msi'
+
+    def defaults_msiC(self):
+        self.srf_getter = 'eotools.srf.get_SRF_eumetsat'
+        self.srf_getter_arg = 'sentinel2_3_msi'
 
     def defaults_viirsn(self):
 
@@ -912,6 +978,21 @@ class Params(object):
         self.ancillary = Ancillary_NASA()
     
 
+    def defaults_hawkeye(self):
+        """
+        Defaults for SeaHawk Hawkeye
+        """
+        from eoread.ancillary_nasa import Ancillary_NASA
+        self.ancillary=Ancillary_NASA()
+        self.bands_corr=[     447, 488, 510, 556, 670, 752, 867]
+        self.bands_oc=  [     447, 488, 510, 556, 670, 752, 867]
+        self.bands_rw=  [412, 447, 488, 510, 556, 670, 752, 867]
+        self.calib=None
+        self.srf_getter="eotools.srf.get_SRF_NASA"
+        self.srf_getter_arg="seahawk1_hawkeye"
+        self.band_cloudmask=867
+
+
     def defaults_pace_oci(self):
 
         def filter_pace_bands(A: List) -> List:
@@ -1000,6 +1081,9 @@ class Params(object):
     def __setattr__(self, key, value):
         self.__dict__['_odict'][key] = value
 
+    def asdict(self):
+        return self.__dict__['_odict']
+
     def items(self):
         return self.__dict__['_odict'].items()
 
@@ -1024,6 +1108,9 @@ class Params(object):
             self.weights_oc = self.weights_oc(self.bands_oc)
 
         # number of terms in the model
-        self.Ncoef = self.atm_model.count(',')+1
+        if self.atm_model == 'none':
+            self.Ncoef = 0
+        else:
+            self.Ncoef = self.atm_model.count(',')+1
 
 
