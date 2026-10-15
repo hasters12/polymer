@@ -139,7 +139,7 @@ class Level1_NETCDF(Level1_base):
                 self.platform = self.root.getncattr('platform')
             self.platform = self.platform.replace('entinel-', '')
 
-        elif title == "MSIL1C":
+        elif "MSIL1C" in title:
             self.sensor = 'MSI'
             self.varnames = {
                 'latitude': 'lat',
